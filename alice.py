@@ -1,41 +1,27 @@
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives import hashes, serialization
-
-def establish_connection(reciver_public_RSA_key, aes_key, hmac_key):
-
-
-    print("Starting key exchange...")
-
-    encrypted_aes_key = reciver_public_RSA_key.encrypt(
-        aes_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
-    encrypted_hmac_key = reciver_public_RSA_key.encrypt(
-        hmac_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
-    return encrypted_aes_key, encrypted_hmac_key
-
-def get_public_key():
-    with open("bob_public.pem", "rb") as key_file:
-        public_key = serialization.load_pem_public_key(
-            key_file.read()
-        )
-    return public_key
-
+import rsa
+import encript_then_mac
 import socket
+
+
 HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-PORT = 65436 
+PORT = 65437
+
+def handshake_tx(connection):
+    print("Starting handshake tx")
+    pubkey = connection.recv(2048) #TODO change this number
+    
+    aes_key = rsa.load_aes_key()
+    hmac_key = rsa.load_mac_key()
+
+    print("Received public key from Bob")
+
+    encrypted_aes_key = rsa.rsa_encrypt(aes_key, pubkey)
+    encrypted_hmac_key = rsa.rsa_encrypt(hmac_key, pubkey)
+
+    connection.sendall(encrypted_aes_key)
+    connection.sendall(encrypted_hmac_key)
+
+    return aes_key, hmac_key
 
 def main():
     with open("pw", "rb") as key_file:
@@ -47,23 +33,28 @@ def main():
         print("Read invalid keys from file")
         return
 
-    public_key = get_public_key()
-    print("Alice's public key loaded")
-    print("Alice waiting for connection...")
-    encrypted_aes_key, encrypted_hmac_key = establish_connection(public_key, aes_key, hmac_key)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((HOST, PORT))
+    
+    aes_key, hmac_key = handshake_tx(sock)    
 
-    print("Connection established")
+    print("Keys sent to Bob:")
+    print(aes_key)
+    print(hmac_key)
 
-    #TODO SOCKETS ARE NOT WORKING! probably packet size is problem!
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
-        print("sending aes key")
-        print(encrypted_aes_key)
-        s.sendall(encrypted_aes_key)
-        print("sending hmac key")
-        print(encrypted_hmac_key)
-        s.sendall(encrypted_hmac_key)
+    # Insert the code block at line 12, column 24
+    pubkey = connection.recv(1024) #TODO change this number
 
+    aes_key = rsa.load_aes_key()
+    hmac_key = rsa.load_mac_key()
+
+    encrypted_aes_key = rsa.rsa_encrypt(aes_key, pubkey)
+    encrypted_hmac_key = rsa.rsa_encrypt(hmac_key, pubkey)
+
+    connection.sendall(encrypted_aes_key)
+    connection.sendall(encrypted_hmac_key)
+
+    return aes_key, hmac_key
 
 
 if __name__ == "__main__":
