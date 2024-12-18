@@ -1,10 +1,10 @@
-import os
+from Crypto.Random import get_random_bytes
 
+def generate_keys():
+    encryption_key = get_random_bytes(16)  # AES-128 key
+    hmac_key = get_random_bytes(32)        # HMAC-SHA256 key
+    with open('pw', 'wb') as f:
+        f.write(encryption_key + hmac_key)
 
-encryption_key = os.urandom(16)  # 128 bits
-authentication_key = os.urandom(32)  # 256 bits
-
-with open("pw", "wb") as key_file:
-    key_file.write(encryption_key + b"\n" + authentication_key)
-
-print("AES-128-CTR and HMAC-SHA256 Keys generated and saved to pw")
+if __name__ == "__main__":
+    generate_keys()
